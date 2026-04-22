@@ -1,12 +1,12 @@
-version: '3'
-
 services:
   mongo:
     container_name: openhim-mongo
     ports:
       - "27017:27017"
-    image: mongo:3.4
-    
+    image: mongo:4.4
+    volumes:
+      - mongo-data:/data/db
+
   core:
     container_name: openhim-core
     image: jembi/openhim-core
@@ -23,12 +23,13 @@ services:
       - "7788:7788"
     depends_on:
       - mongo
-  
+
   console:
     container_name: openhim-console
     image: jembi/openhim-console
     ports:
-        - "9000:80"
+      - "9000:80"
     volumes:
       - ./default.json:/usr/share/nginx/html/config/default.json
-    
+volumes:
+  mongo-data:
