@@ -1,35 +1,48 @@
 services:
   mongo:
     container_name: openhim-mongo
-    ports:
-      - "27017:27017"
     image: mongo:4.4
+    restart: unless-stopped
+    # Sin puertos publicados: solo accesible desde la red interna de docker
     volumes:
       - mongo-data:/data/db
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   core:
     container_name: openhim-core
-    image: jembi/openhim-core
+    image: jembi/openhim-core:${OPENHIM_CORE_VERSION:-v8.5.0}
+    restart: unless-stopped
     environment:
       - mongo_url=mongodb://mongo/openhim
       - mongo_atnaUrl=mongodb://mongo/openhim
+      # Clave de sesion propia (el valor por defecto de la imagen es publico)
+      - api_sessionKey=${OPENHIM_SESSION_KEY:?Define OPENHIM_SESSION_KEY en .env}
+      # Detras de Nginx Proxy Manager: confiar en X-Forwarded-*
+      - api_trustProxy=true
+      - router_externalHostname=${OPENHIM_ROUTER_HOST:-localhost}
+      - alerts_consoleURL=${OPENHIM_CONSOLE_URL:-http://localhost:9000}
+      - openhimConsoleBaseUrl=${OPENHIM_CONSOLE_URL:-http://localhost:9000}
     ports:
-      - "8080:8080"
-      - "5000:5000"
-      - "5001:5001"
-      - "5050:5050"
-      - "5051:5051"
-      - "5052:5052"
-      - "7788:7788"
+      - "${BIND_IP:-0.0.0.0}:8080:8080" # API (HTTPS, cert autofirmado)
+      - "${BIND_IP:-0.0.0.0}:5000:5000" # Router HTTPS
+      - "${BIND_IP:-0.0.0.0}:5001:5001" # Router HTTP
     depends_on:
       - mongo
+    logging: *logging
 
   console:
     container_name: openhim-console
-    image: jembi/openhim-console
+    image: jembi/openhim-console:${OPENHIM_CONSOLE_VERSION:-v1.18.2}
+    restart: unless-stopped
     ports:
-      - "9000:80"
+      - "${BIND_IP:-0.0.0.0}:9000:80"
     volumes:
-      - ./default.json:/usr/share/nginx/html/config/default.json
+      - ${CONSOLE_CONFIG:-./default.json}:/usr/share/nginx/html/config/default.json:ro
+    logging: *logging
+
 volumes:
   mongo-data:

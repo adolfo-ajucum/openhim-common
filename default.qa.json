@@ -1,0 +1,19 @@
+{
+  "version": "1.18.2",
+  "minimumCoreVersion": "5.2.0",
+  "protocol": "https",
+  "host": "openhim-qa-api.hro.gob.gt",
+  "hostPath": "",
+  "port": "443",
+  "title": "OpenHIM QA - HRO",
+  "footerTitle": "OpenHIM Administration Console",
+  "footerPoweredBy": "<a href='http://openhim.org/' target='_blank'>Powered by OpenHIM</a>",
+  "loginBanner": "Ambiente de PRUEBAS",
+  "mediatorLastHeartbeatWarningSeconds": 60,
+  "mediatorLastHeartbeatDangerSeconds": 120,
+  "showLoginForm": true,
+  "ssoEnabled": false,
+  "keyCloakUrl": "http://localhost:9088",
+  "keyCloakRealm": "platform-realm",
+  "keyCloakClientId": "openhim-oauth"
+}
