@@ -53,7 +53,17 @@ docker compose logs -f core
 1. **"An error occurred while attempting to connect to the OpenHIM Core on https://openhim-qa-api.hro.gob.gt:443"**
    - El registro DNS de `openhim-qa-api` aún no propagaba; se resolvió solo.
    - El Proxy Host de la API en NPM tenía Scheme `http`, lo que daba **502**. El core solo atiende HTTPS en el 8080, así que se cambió a `https`.
-2. El error `getaddrinfo EAI_AGAIN mxr.mozilla.org` en los logs del core es inofensivo (el paquete ssl-root-cas intenta descargar CAs).
+2. **El servidor FHIR (`..\hapi-fhirs-hro`, contenedor `hapi-fhir-facade`, puerto 8082) devolvía URLs internas** (`http://192.168.1.18:8082/fhir/...`) en `fullUrl` y `link` al pasar por OpenHIM.
+   OpenHIM no requiere configuración: HAPI arma las URLs con el `Host` que recibe. Se agregó la variable `FHIR_SERVER_ADDRESS` (en el `.env` de ese repo) con `HardcodedServerAddressStrategy` en `ExampleRestfulServlet`. Valor actual: `https://openhim-qa-router.hro.gob.gt/fhir`. Si cambia el path del canal en OpenHIM, hay que ajustarla.
+3. El error `getaddrinfo EAI_AGAIN mxr.mozilla.org` en los logs del core es inofensivo (el paquete ssl-root-cas intenta descargar CAs).
+
+## Documentación de la API FHIR (en `..\hapi-fhirs-hro`)
+
+- **Swagger UI**: `https://openhim-qa-router.hro.gob.gt/fhir/swagger-ui/`. La especificación está en `/fhir/api-docs` (YAML). Se genera con `OpenApiInterceptor` y usa `FHIR_SERVER_ADDRESS` como URL del servidor.
+- **Guía de implementación FHIR** (SUSHI + IG Publisher) en `hapi-fhirs-hro/ig/`:
+  - perfil `HROPatient`, extensiones `nombre-madre`/`nombre-padre`, NamingSystems de CUI e historia clínica, CapabilityStatement y ejemplos;
+  - páginas: acceso, consultas y errores.
+  - Build: `cd ig`, luego `_updatePublisher.bat` (solo la primera vez) y `_genonce.bat -tx n/a`. Abrir `ig/output/index.html`. La primera ejecución tarda unos 10 minutos.
 
 ## Pendientes
 
@@ -62,6 +72,11 @@ docker compose logs -f core
   - crear una regla de **bloqueo** para 9000, 8080 y 5001 desde toda la red excepto `192.168.1.78` (PowerShell como Administrador; las reglas de bloqueo ganan sobre las de permitir).
 - [ ] **Restringir el acceso a la consola y la API**: Access List por IP. Como NPM ve las IPs de Cloudflare, conviene hacerlo en Cloudflare (regla de WAF o Cloudflare Access).
 - [ ] **Canales de OpenHIM**: configurar autenticación por cliente (básica o por IP). No dejar canales públicos sin autenticación.
-- [ ] **Commit** de los cambios del repo (el `.env` queda fuera por `.gitignore`).
+- [x] Commit de los cambios de este repo (rama `deploy-qa`, commit `6ed962f`; falta merge a master).
+- [ ] Commit en `hapi-fhirs-hro` del cambio de `FHIR_SERVER_ADDRESS` (`ExampleRestfulServlet.java`, `.env.example`).
+- [ ] **El FHIR en el puerto 8082 es accesible directo desde la LAN, sin pasar por OpenHIM.** Debería aceptar solo conexiones de OpenHIM: ponerlo en la red docker de OpenHIM sin publicar el puerto, o limitarlo con el firewall.
+- [ ] Publicar `ig/output/` como sitio estático (por ejemplo, nginx + Proxy Host `fhir-ig-qa.hro.gob.gt`).
+- [ ] Búsqueda de Patient sin parámetros responde 500 en vez de 400: el `catch (Exception)` de `searchPatients` atrapa el `InvalidRequestException`. La guía documenta el comportamiento actual.
+- [ ] Probar `/fhir/swagger-ui/` y `/fhir/api-docs` por la URL pública con credenciales de cliente. Sin credenciales, OpenHIM responde 401 (2026-10-01), así que el canal ya exige autenticación.
 - [ ] Opcional: configurar el correo (`email_*`) para alertas y reportes; ahora trae valores de ejemplo.
 - [ ] Opcional: respaldos del volumen `openhim-common_mongo-data` (por ejemplo, `mongodump` programado).
